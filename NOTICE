@@ -1,0 +1,20 @@
+Pistil
+
+2011 (c) Benoît Chesneau <benoitc@e-engura.org>
+2011 (c) Meebo
+
+Pistil is released under the MIT license. See the LICENSE
+file for the complete license.
+
+
+Following files are under MIT License and copyrights:
+2009-2011 (c) Benoît Chesneau <benoitc@e-engura.org>
+2009-2011 (c) Paul J. Davis <paul.joseph.davis@gmail.com>
+
+
+pistil/arbiter.py,
+pistil/util.py
+pistil/sock.py
+pistil/pidfile.py
+pistil/workertmp.py
+pistil/worker.py
