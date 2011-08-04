@@ -569,7 +569,6 @@ class Arbiter(object):
             self.log.info("Worker exiting (pid: %s)", worker_pid)
             try:
                 worker.tmp.close()
-                self.cfg.worker_exit(self, worker)
             except:
                 pass
 
