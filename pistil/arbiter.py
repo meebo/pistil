@@ -458,7 +458,7 @@ class Arbiter(object):
         self.on_reload(self.conf, old_conf)
 
         # spawn new workers with new app & conf
-        for i in range(self.app.cfg.workers):
+        for i in range(self.conf.get("num_workers", 1)):
             self.spawn_worker()
         
         # unlink pidfile
@@ -466,7 +466,7 @@ class Arbiter(object):
             self.pidfile.unlink()
 
         # create new pidfile
-        if self.cfg.pidfile is not None:
+        if self.conf.get("pidfile") is not None:
             self.pidfile = Pidfile(self.cfg.pidfile)
             self.pidfile.create(self.pid)
             

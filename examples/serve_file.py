@@ -69,7 +69,8 @@ class HttpWorker(TcpGeventWorker):
 
 
 def main():
-    conf = {"address": ("127.0.0.1", 5000), "debug": True}
+    conf = {"address": ("127.0.0.1", 5000), "debug": True,
+            "num_workers": 3}
     print conf
     arbiter = TcpArbiter(conf, HttpWorker)
     arbiter.run()
