@@ -12,42 +12,62 @@ import sys
 import traceback
 
 
-from gunicorn import util
+from pistil import util
 from pistil.workertmp import WorkerTmp
+
+log = logging.getLogger(__name__)
 
 class Worker(object):
     
-    SIGNALS = map(
+    _SIGNALS = map(
         lambda x: getattr(signal, "SIG%s" % x),
         "HUP QUIT INT TERM USR1 USR2 WINCH CHLD".split()
     )
     
-    PIPE = []
+    _PIPE = []
 
-    def __init__(self, age, ppid, timeout, conf, worker_args):
+
+    def __init__(self, name=None, age=0, child_type="worker",
+            ppid=0, timeout=30, local_conf={}, global_conf={}):
+
+        self._name = name
+        self.child_type = child_type
         self.age = age
         self.ppid = ppid
         self.timeout = timeout
-        self.conf = conf
-        self.worker_args = worker_args
+
+        self.local_conf = local_conf
+        self.global_conf = global_conf
+
+        # initialize
         self.booted = False
-
-
-        self.nr = 0
-        self.max_requests = conf.get("max_requests", sys.maxint)
         self.alive = True
-        self.log = logging.getLogger(__name__)
-        self.debug = conf.get("debug", False)
-        self.tmp = WorkerTmp(conf)
+        self.debug =self.global_conf.get("debug", False)
+        self.tmp = WorkerTmp(self.global_conf)
 
-        self.on_init()
+        self.on_init(self.local_conf, self.global_conf)
 
-    def on_init(self):
-        """ methode executed after worker initialization"""
+    def on_init(self, local_conf, global_conf):
+        pass
 
-    @property
+    def __get_name(self):
+        try:
+            return self._name
+        except AttributeError:
+            self._name = self.__class__.__name__.lower()
+            return self._name
+    def __set_name(self, name):
+        self._name = name
+    name = property(__get_name, __set_name)
+        
+    def conf(self):
+        conf = self.global_conf.copy()
+        conf.update(self.local_conf)
+    conf = util.cached_property(conf) 
+
     def pid(self):
         return os.getpid()
+    pid = util.cached_property(pid)
 
     def notify(self):
         """\
@@ -75,16 +95,16 @@ class Worker(object):
         super(MyWorkerClass, self).init_process() so that the ``run()``
         loop is initiated.
         """
-        util.set_owner_process(self.conf.get("uid", os.geteuid()),
-                self.conf.get("gid", os.getegid()))
+        util.set_owner_process(self.global_conf.get("uid", os.geteuid()),
+                self.global_conf.get("gid", os.getegid()))
 
         # Reseed the random number generator
         util.seed()
 
         # For waking ourselves up
-        self.PIPE = os.pipe()
-        map(util.set_non_blocking, self.PIPE)
-        map(util.close_on_exec, self.PIPE)
+        self._PIPE = os.pipe()
+        map(util.set_non_blocking, self._PIPE)
+        map(util.close_on_exec, self._PIPE)
         
         # Prevent fd inherientence
         util.close_on_exec(self.tmp.fileno())
@@ -97,7 +117,7 @@ class Worker(object):
         self.run()
 
     def init_signals(self):
-        map(lambda s: signal.signal(s, signal.SIG_DFL), self.SIGNALS)
+        map(lambda s: signal.signal(s, signal.SIG_DFL), self._SIGNALS)
         signal.signal(signal.SIGQUIT, self.handle_quit)
         signal.signal(signal.SIGTERM, self.handle_exit)
         signal.signal(signal.SIGINT, self.handle_exit)

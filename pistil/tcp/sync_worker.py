@@ -4,6 +4,7 @@
 # See the NOTICE for more information.
 
 import errno
+import logging
 import os
 import select
 import socket
@@ -12,10 +13,14 @@ import socket
 from pistil import util
 from pistil.worker import Worker
 
+
+log = logging.getLogger(__name__)
+
+
 class TcpSyncWorker(Worker):
 
     def on_init_process(self):
-        self.socket = self.worker_args.get('sock')
+        self.socket = self.local_conf.get('sock')
         self.address = self.socket.getsockname()
         util.close_on_exec(self.socket)
         
@@ -46,12 +51,13 @@ class TcpSyncWorker(Worker):
 
             # If our parent changed then we shut down.
             if self.ppid != os.getppid():
-                self.log.info("Parent changed, shutting down: %s", self)
+                log.info("Parent changed, shutting down: %s", self)
                 return
             
             try:
                 self.notify()
-                ret = select.select([self.socket], [], self.PIPE, self.timeout)
+                ret = select.select([self.socket], [], self._PIPE,
+                        self.timeout / 2.0)
                 if ret[0]:
                     continue
             except select.error, e:
