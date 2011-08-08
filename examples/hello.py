@@ -11,11 +11,8 @@ from pistil.worker import Worker
 
 class MyWorker(Worker):
 
-    def run(self):
-
-        while True:
-            print "hello from worker n°%s" % self.pid
-            time.sleep(1)
+    def handle(self):
+        print "hello from worker n°%s" % self.pid
 
 
 if __name__ == "__main__":

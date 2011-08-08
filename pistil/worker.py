@@ -9,6 +9,7 @@ import logging
 import os
 import signal
 import sys
+import time
 import traceback
 
 
@@ -65,13 +66,20 @@ class Worker(object):
         """
         self.tmp.notify()
 
+    
+    def handle(self):
+        raise NotImplementedError
+
     def run(self):
         """\
         This is the mainloop of a worker process. You should override
         this method in a subclass to provide the intended behaviour
         for your particular evil schemes.
         """
-        raise NotImplementedError()
+        while True:
+            self.notify()
+            self.handle()
+            time.sleep(0.1)
 
     def on_init_process(self):
         """ method executed when we init a process """
