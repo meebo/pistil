@@ -150,6 +150,9 @@ class Arbiter(object):
         # Reseed the random number generator
         util.seed()
 
+        # prevent fd inheritance
+        util.close_on_exec(self.tmp.fileno())
+
         # init signals
         self.init_signals()
 
@@ -195,6 +198,8 @@ class Arbiter(object):
         self.spawn_workers()
         while True:
             try:
+                # notfy the master
+                self.tmp.notify()
                 self.reap_workers()
                 sig = self._SIG_QUEUE.pop(0) if len(self._SIG_QUEUE) else None
                 if sig is None:
@@ -257,7 +262,6 @@ class Arbiter(object):
         self.stop(False)
         raise StopIteration
 
-
     def handle_usr1(self):
         """\
         SIGUSR1 handling.
@@ -283,6 +287,7 @@ class Arbiter(object):
         except IOError, e:
             if e.errno not in [errno.EAGAIN, errno.EINTR]:
                 raise
+        
                     
     def halt(self, reason=None, exit_status=0):
         """ halt arbiter """

@@ -107,7 +107,6 @@ class PoolArbiter(Arbiter):
         # manage workers
         self.manage_workers() 
 
-
     def reap_workers(self):
         """\
         Reap workers to avoid zombie processes
