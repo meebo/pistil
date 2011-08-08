@@ -14,6 +14,7 @@ try:
 except ImportError:
     raise RuntimeError("You need gevent installed to use this worker.")
 
+
 from gevent.pool import Pool
 from gevent.server import StreamServer
 
@@ -40,14 +41,8 @@ class PStreamServer(StreamServer):
 
 class TcpGeventWorker(TcpSyncWorker):
 
-    @classmethod
-    def setup(self, server, conf):
-        from gevent import monkey
-        monkey.noisy = False
-        monkey.patch_all()
-
-    def on_init(self):
-        self.worker_connections = self.conf.get("worker_connections", 
+    def on_init(self, conf):
+        self.worker_connections = conf.get("worker_connections", 
                 10000)
         self.pool = Pool(self.worker_connections)
 

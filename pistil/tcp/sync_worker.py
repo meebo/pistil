@@ -20,7 +20,7 @@ log = logging.getLogger(__name__)
 class TcpSyncWorker(Worker):
 
     def on_init_process(self):
-        self.socket = self.local_conf.get('sock')
+        self.socket = self.conf.get('sock')
         self.address = self.socket.getsockname()
         util.close_on_exec(self.socket)
         

@@ -16,14 +16,14 @@ class TcpArbiter(PoolArbiter):
 
     _LISTENER = None
 
-    def on_init(self, local_conf, global_conf):
-        super(TcpArbiter, self).on_init(local_conf, global_conf)
-        self.address = local_conf.get('address', ('127.0.0.1', 8000))
+    def on_init(self, args):
+        self.address = args.get('address', ('127.0.0.1', 8000))
         if not self._LISTENER:
-            self._LISTENER = create_socket(self.local_conf)
+            self._LISTENER = create_socket(args)
 
         # we want to pass the socket to the worker.
-        self.worker.args = {"sock": self._LISTENER}
+        self.conf.update({"sock": self._LISTENER})
+        print self.conf
         
 
     def when_ready(self):
@@ -34,16 +34,6 @@ class TcpArbiter(PoolArbiter):
         # save the socket file descriptor number in environ to reuse the
         # socket after forking a new master.
         os.environ['PISTIL_FD'] = str(self._LISTENER.fileno())
-
-    def on_reload(self, local_conf, old_local_conf, global_conf,
-            old_global_conf):
-        old_address = old_local_conf.get("address", ('127.0.0.1', 8000))
-
-        # do we need to change listener ?
-        if old_address != local_conf.get("address", ('127.0.0.1', 8000)):
-            self._LISTENER.close()
-            self._LISTENER = create_socket(conf)
-            log.info("Listening at: %s", self._LISTENER) 
 
     def on_stop(self, graceful=True):
         self._LISTENER = None

@@ -3,7 +3,6 @@
 # This file is part of pistil released under the MIT license. 
 # See the NOTICE for more information.
 
-from pistil.arbiter import child
 from pistil.tcp.sync_worker import TcpSyncWorker
 from pistil.tcp.arbiter import TcpArbiter
 
@@ -16,20 +15,18 @@ class MyTcpWorker(TcpSyncWorker):
         p = HttpStream(SocketReader(sock))
 
         path = p.path()
-        data = "welcome wold 2"
+        data = "hello world"
         sock.send("".join(["HTTP/1.1 200 OK\r\n", 
                         "Content-Type: text/html\r\n",
                         "Content-Length:" + str(len(data)) + "\r\n",
                          "Connection: close\r\n\r\n",
                          data]))
 
-
-class MyPoolArbiter(TcpArbiter):
-    worker = child(MyTcpWorker, 30, "worker", {})
-
-
 if __name__ == '__main__':
-    arbiter = MyPoolArbiter("master", local_conf={"num_workers": 3})
+    conf = {"num_workers": 3}
+    spec = (MyTcpWorker, 30, "worker", {}, "worker",)
+    
+    arbiter = TcpArbiter(conf, spec)
 
     arbiter.run()
 

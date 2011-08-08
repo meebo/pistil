@@ -27,43 +27,31 @@ class Worker(object):
     _PIPE = []
 
 
-    def __init__(self, name=None, age=0, child_type="worker",
-            ppid=0, timeout=30, local_conf={}, global_conf={}):
+    def __init__(self, conf, name=None, child_type="worker", 
+            age=0, ppid=0, timeout=30):
 
-        self._name = name
+        if name is None:
+            name =  self.__class__.__name__
+        self.name = name
+
         self.child_type = child_type
         self.age = age
         self.ppid = ppid
         self.timeout = timeout
+        self.conf = conf
 
-        self.local_conf = local_conf
-        self.global_conf = global_conf
 
         # initialize
         self.booted = False
         self.alive = True
-        self.debug =self.global_conf.get("debug", False)
-        self.tmp = WorkerTmp(self.global_conf)
+        self.debug =self.conf.get("debug", False)
+        self.tmp = WorkerTmp(self.conf)
 
-        self.on_init(self.local_conf, self.global_conf)
+        self.on_init(self.conf)
 
-    def on_init(self, local_conf, global_conf):
+    def on_init(self, conf):
         pass
 
-    def __get_name(self):
-        try:
-            return self._name
-        except AttributeError:
-            self._name = self.__class__.__name__.lower()
-            return self._name
-    def __set_name(self, name):
-        self._name = name
-    name = property(__get_name, __set_name)
-        
-    def conf(self):
-        conf = self.global_conf.copy()
-        conf.update(self.local_conf)
-    conf = util.cached_property(conf) 
 
     def pid(self):
         return os.getpid()
@@ -95,8 +83,8 @@ class Worker(object):
         super(MyWorkerClass, self).init_process() so that the ``run()``
         loop is initiated.
         """
-        util.set_owner_process(self.global_conf.get("uid", os.geteuid()),
-                self.global_conf.get("gid", os.getegid()))
+        util.set_owner_process(self.conf.get("uid", os.geteuid()),
+                self.conf.get("gid", os.getegid()))
 
         # Reseed the random number generator
         util.seed()

@@ -6,7 +6,7 @@
 import time
 import urllib2
 
-from pistil.arbiter import Arbiter, child
+from pistil.arbiter import Arbiter
 from pistil.worker import Worker
 from pistil.tcp.sync_worker import TcpSyncWorker
 from pistil.tcp.arbiter import TcpArbiter
@@ -39,16 +39,22 @@ class UrlWorker(Worker):
             self.notify 
 
 class MyPoolArbiter(TcpArbiter):
-    worker = child(MyTcpWorker, 30, "worker", {})
 
+    def on_init(self, conf):
+        TcpArbiter.on_init(self, conf)
+        # we return a spec
+        return (MyTcpWorker, 30, "worker", {}, "http_welcome",)
 
-class MyArbiter(Arbiter):
-    pool = child(MyPoolArbiter, 30, "supervisor", 
-            {"num_workers": 3, "address": ("127.0.0.1", 5000)})
-    grabber = child(UrlWorker, 30, "worker", {})
 
 if __name__ == '__main__':
-    arbiter = MyArbiter("master", local_conf={"num_workers": 3})
+    conf = {"num_workers": 3, "address": ("127.0.0.1", 5000)}
+
+    specs = [
+        (MyPoolArbiter, 30, "supervisor", {}, "tcp_pool"),
+        (UrlWorker, 30, "worker", {}, "grabber")
+    ]
+
+    arbiter = Arbiter(conf, specs)
     arbiter.run()
 
 

@@ -6,6 +6,12 @@
 import mimetypes
 import os
 
+
+from gevent import monkey
+monkey.noisy = False
+monkey.patch_all()
+
+
 from http_parser.http import HttpStream
 from http_parser.reader import SocketReader
 
@@ -132,8 +138,9 @@ class HttpWorker(TcpGeventWorker):
 def main():
     conf = {"address": ("127.0.0.1", 5000), "debug": True,
             "num_workers": 3}
-    print conf
-    arbiter = TcpArbiter(conf, HttpWorker)
+    spec = (HttpWorker, 30, "send_file", {}, "worker",)
+    
+    arbiter = TcpArbiter(conf, spec)
     arbiter.run()
 
 

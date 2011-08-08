@@ -7,7 +7,6 @@ from __future__ import with_statement
 
 import errno
 import logging
-from logging.config import fileConfig
 import os
 import select
 import signal
@@ -16,7 +15,6 @@ import time
 import traceback
 
 from pistil.errors import HaltServer
-from pistil.pidfile import Pidfile
 from pistil.workertmp import WorkerTmp
 from pistil import util
 from pistil import __version__, SERVER_SOFTWARE
@@ -30,50 +28,14 @@ LOG_LEVELS = {
 }
 
 DEFAULT_CONF = dict(
-    name = __name__,
-    pidfile = None,
-    worker_connections = 1000,
-    num_workers = 1, 
-    max_requests = 0,
-    timeout = 30,
     uid = os.geteuid(),
     gid = os.getegid(),
     umask = 0,
     debug = False,
-    log_config = None,
-    log_file = '-',
-    log_level= 'info')
+)
 
 
 RESTART__WORKERS = ("worker", "supervisor")
-
-def configure_logging(loglevel='info', logfile='-', logconfig=None):
-    """\
-    Set the log level and choose the destination for log output.
-    """
-    logger = logging.getLogger(__name__)
-
-    fmt = r"%(asctime)s [%(process)d] [%(levelname)s] %(message)s"
-    datefmt = r"%Y-%m-%d %H:%M:%S"
-    if not conf.get('log_config'):
-        handlers = []
-        if logfile != "-":
-            handlers.append(logging.FileHandler(logfile))
-        else:
-            handlers.append(logging.StreamHandler())
-
-        loglevel = LOG_LEVELS[loglevel] 
-        logger.setLevel(loglevel)
-        for h in handlers:
-            h.setFormatter(logging.Formatter(fmt, datefmt))
-            logger.addHandler(h)
-    else:
-        if os.path.exists(logconfig):
-            fileConfig(logconfig)
-        else:
-            raise RuntimeError("Error: logfile '%s' not found." %
-                    logconfig)
-
 
 log = logging.getLogger(__name__)
 
@@ -83,67 +45,17 @@ logging.basicConfig(format="%(asctime)s [%(process)d] [%(levelname)s] %(message)
 
 
 
-class child(object):
 
+class Child(object):
 
-    def __init__(self, child_class, timeout=30, child_type="worker",
-            args={}, name=None):
+    def __init__(self, child_class, timeout, child_type,
+            args, name):
         self.child_class= child_class
         self.timeout = timeout
         self.child_type = child_type
         self.args = args
         self.name = name
-   
-
-    def __get__(self, instance, cls):
-        if instance is None:
-            return self
-        return instance._CHILDREN_SPECS[self.name]
-
-
-    def __child_config__(self, cls, name):
-        if self.name is None:
-            self.name = name
-
-    def __set__(self, instance, value):
-        instance._CHILDREN_SPECS[self.name] = value
-
-    def __property_init__(self, document_instance, value):
-        """ method used to set value of the property when
-        we create the document. Don't check required. """
-        if value is not None:
-            value = self.to_json(self.validate(value, required=False))
-        document_instance._doc[self.name] = value
-
-
-class MetaArbiter(type):
-
-    def __new__(cls, name, bases, attrs):
-        # init properties
-        children = {}
-        defined = set()
-        for base in bases:
-            if hasattr(base, '_CHILDREN_SPECS'):
-                child_names  = base._CHILDREN_SPECS.keys()
-                duplicate_names = defined.intersection(child_names)
-                if duplicate_names:
-                    raise DuplicatePropertyError(
-                            'Duplicate children in base class %s already defined: %s' % (base.__name__, list(duplicate_names)))
-                    defined.update(duplicate_names)
-                children.update(base._CHILDREN_SPECS)
-
-
-
-        for attr_name, attr in attrs.items():
-            # map properties
-            if isinstance(attr, child):
-                print attr_name
-                if attr_name in defined:
-                    raise DuplicatePropertyError('Duplicate child: %s' % attr_name)
-                children[attr_name] = attr
-                attr.__child_config__(cls, attr_name)
-        attrs['_CHILDREN_SPECS'] = children
-        return type.__new__(cls, name, bases, attrs)
+        print self.name
 
 
 # chaine init worker:
@@ -157,9 +69,8 @@ class Arbiter(object):
     via SIGHUP/USR2.
     """
 
-    __metaclass__ = MetaArbiter 
-
-    _CHILDREN_SPECS = dict()
+    _SPECS_BYNAME = {}
+    _CHILDREN_SPECS = []
 
     # A flag indicating if a worker failed to
     # to boot. If a worker process exist with
@@ -180,38 +91,44 @@ class Arbiter(object):
         if name[:3] == "SIG" and name[3] != "_"
     )
     
-    def __init__(self, name=None, child_type="supervisor", age=0,
-            ppid=0, timeout=30, local_conf={}, global_conf={}):
+    def __init__(self, args, specs=[], name=None,
+            child_type="supervisor", age=0, ppid=0,
+            timeout=30):
 
-        self._name = name
+        # set conf
+        conf = DEFAULT_CONF.copy()
+        conf.update(args)
+        self.conf = conf
+
+
+        specs.extend(self.on_init(conf))
+
+        for spec in specs:
+            c = Child(*spec)
+            self._CHILDREN_SPECS.append(c)
+            self._SPECS_BYNAME[c.name] = c
+
+
+        if name is None:
+            name =  self.__class__.__name__
+        self.name = name
         self.child_type = child_type
         self.age = age
         self.ppid = ppid
         self.timeout = timeout
-        self.local_conf = local_conf 
-        self.global_conf = global_conf
+
 
         self.pid = None
-        self.num_children = len(self._CHILDREN_SPECS.keys())
+        self.num_children = len(self._CHILDREN_SPECS)
         self.child_age = 0
         self.booted = False
         self.stopping = False
-        self.debug =self.global_conf.get("debug", False)
-        self.tmp = WorkerTmp(self.global_conf)
-        self.on_init(self.local_conf, self.global_conf)
+        self.debug =self.conf.get("debug", False)
+        self.tmp = WorkerTmp(self.conf)
+        
+    def on_init(self, args):
+        return []
 
-    def on_init(self, local_conf, global_conf):
-        pass
-
-    def __get_name(self):
-        try:
-            return self._name
-        except AttributeError:
-            self._name = self.__class__.__name__.lower()
-            return self._name
-    def __set_name(self, name):
-        self._name = name
-    name = util.cached_property(__get_name, __set_name)
 
     def on_init_process(self):
         """ method executed when we init a process """
@@ -227,8 +144,8 @@ class Arbiter(object):
         # set current pid
         self.pid = os.getpid()
 
-        util.set_owner_process(self.global_conf.get("uid", os.geteuid()),
-                self.global_conf.get("gid", os.getegid()))
+        util.set_owner_process(self.conf.get("uid", os.geteuid()),
+                self.conf.get("gid", os.getegid()))
 
         # Reseed the random number generator
         util.seed()
@@ -424,8 +341,7 @@ class Arbiter(object):
         self.kill_workers(signal.SIGKILL)   
         self.stopping = False
 
-    def on_reload(self, local_conf, old_local_conf, global_conf,
-            old_global_conf):
+    def on_reload(self):
         """ method executed on reload """
 
 
@@ -434,13 +350,8 @@ class Arbiter(object):
         used on HUP
         """
     
-        # keep oldconf
-        old_global_conf = self.global_conf.copy()
-        old_local_conf = self.local_conf.copy()
-        
         # exec on reload hook
-        self.on_reload(self.local_conf, old_local_conf,
-                self.global_conf, old_global_conf)
+        self.on_reload()
 
         OLD__WORKERS = self._WORKERS.copy()
 
@@ -448,7 +359,7 @@ class Arbiter(object):
         to_reload = []
 
         # spawn new workers with new app & conf
-        for child_name, child in self._CHILDREN_SPECS.items():
+        for child in self._CHILDREN_SPECS:
             if child.child_type != "supervisor":
                 to_reload.append(child)
 
@@ -522,7 +433,7 @@ class Arbiter(object):
 
         for pid, (child, state) in self._WORKERS.items():
             if not state:
-                self.spawn_child(self._CHILDREN_SPECS[child.name])
+                self.spawn_child(self._SPECS_BYNAME[child.name])
 
     def pre_fork(self, worker):
         """ methode executed on prefork """
@@ -535,13 +446,17 @@ class Arbiter(object):
         name = child_spec.name
         child_type = child_spec.child_type
 
-        child = child_spec.child_class(name, 
-                    age=self.child_age,
-                    child_type=child_type, 
+        child_args = self.conf
+        child_args.update(child_spec.args)
+
+        # initialize child class
+        child = child_spec.child_class(
+                    child_args,
+                    name = name,
+                    child_type = child_type, 
+                    age = self.child_age,
                     ppid = self.pid,
-                    timeout=child_spec.timeout, 
-                    local_conf=child_spec.args,
-                    global_conf=self.global_conf)
+                    timeout = child_spec.timeout)
 
         self.pre_fork(child)
         pid = os.fork()
@@ -580,7 +495,7 @@ class Arbiter(object):
         of the master process.
         """
         
-        for child_name, child in self._CHILDREN_SPECS.items(): 
+        for child in self._CHILDREN_SPECS: 
             self.spawn_child(child)
 
     def kill_workers(self, sig):

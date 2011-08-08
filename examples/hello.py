@@ -20,5 +20,7 @@ class MyWorker(Worker):
 
 if __name__ == "__main__":
     conf = {"num_workers": 3}
-    a = Arbiter(conf, MyWorker)
+
+    specs = [(MyWorker, 30, "worker", {}, "test")]
+    a = Arbiter(conf, specs)
     a.run()

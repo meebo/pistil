@@ -7,17 +7,18 @@ import errno
 import os
 import signal
 
-from pistil.arbiter import Arbiter
+from pistil.errors import HaltServer
+from pistil.arbiter import Arbiter, Child
+from pistil.workertmp import WorkerTmp
 from pistil import util
 
-class MetaPoolArbiter(type):
-
-    def __new__(cls, name, bases, attrs):
-        if "worker" in attrs:
-            attrs['_CHILDREN_SPECS']['worker'] = attrs.get('worker')
-        else:
-            raise AttributeError("A worker is required")
-        return type.__new__(cls, name, bases, attrs)
+DEFAULT_CONF = dict(
+    uid = os.geteuid(),
+    gid = os.getegid(),
+    umask = 0,
+    debug = False,
+    num_workers = 1,
+)
 
 
 class PoolArbiter(Arbiter):
@@ -28,13 +29,44 @@ class PoolArbiter(Arbiter):
         "HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH".split()
     )
 
-    def __init__(self, name=None, child_type="supervisor", age=0,
-            ppid=0, timeout=30, local_conf={}, global_conf={}):
-        self.num_workers = local_conf.get('num_workers', 1)
-        Arbiter.__init__(self, name=name, child_type=child_type, 
-                age=age, ppid=ppid, timeout=timeout, local_conf=local_conf,
-                global_conf=global_conf)
+    def __init__(self, args, spec=(), name=None,
+            child_type="supervisor", age=0, ppid=0,
+            timeout=30):
 
+        if not isinstance(spec, tuple):
+            raise TypeError("spec should be a tuple")
+
+        # set conf
+        conf = DEFAULT_CONF.copy()
+        conf.update(args)
+        self.conf = conf
+
+        # set number of workers
+        self.num_workers = conf.get('num_workers', 1)
+       
+        ret =  self.on_init(conf)
+        if ret is not None:
+            self._SPEC = Child(*ret)
+        else:
+            self._SPEC = Child(*spec)
+
+        if name is None:
+            name =  self.__class__.__name__
+
+        self.name = name
+        self.child_type = child_type
+        self.age = age
+        self.ppid = ppid
+        self.timeout = timeout
+
+
+        self.pid = None
+        self.child_age = 0
+        self.booted = False
+        self.stopping = False
+        self.debug =self.conf.get("debug", False)
+        self.tmp = WorkerTmp(self.conf)
+        
     def handle_ttin(self):
         """\
         SIGTTIN handling.
@@ -57,20 +89,13 @@ class PoolArbiter(Arbiter):
         """ 
         used on HUP
         """
-    
-        # keep oldconf
-        old_global_conf = self.global_conf.copy()
-        old_local_conf = self.local_conf.copy()
-        
-        # exec on reload hook
-        self.on_reload(self.local_conf, old_local_conf,
-                self.global_conf, old_global_conf)
 
+        # exec on reload hook
+        self.on_reload()
 
         # spawn new workers with new app & conf
-        child = self._CHILDREN_SPECS["worker"]
-        for i in range(self.local_conf.get("num_workers", 1)):
-            self.spawn_child(child)
+        for i in range(self.conf.get("num_workers", 1)):
+            self.spawn_child(self._SPEC)
             
         # set new proc_name
         util._setproctitle("master [%s]" % self.name)
@@ -112,7 +137,7 @@ class PoolArbiter(Arbiter):
         as required.
         """
         if len(self._WORKERS.keys()) < self.num_workers:
-            self.spawn_children()
+            self.spawn_workers()
 
         workers = self._WORKERS.items()
         workers.sort(key=lambda w: w[1][0].age)
@@ -127,9 +152,8 @@ class PoolArbiter(Arbiter):
         This is where a worker process leaves the main loop
         of the master process.
         """
-        child = self._CHILDREN_SPECS.get('worker')
         for i in range(self.num_workers - len(self._WORKERS.keys())):
-            self.spawn_child(child)
+            self.spawn_child(self._SPEC)
             
     
     def kill_worker(self, pid, sig):

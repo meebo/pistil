@@ -4,7 +4,7 @@
 # See the NOTICE for more information.
 
 import time
-from pistil.arbiter import Arbiter, child
+from pistil.arbiter import Arbiter
 from pistil.worker import Worker
 from http_parser.http import HttpStream
 from http_parser.reader import SocketReader
@@ -27,13 +27,17 @@ class MyWorker2(Worker):
             self.notify()
 
 
-class MyArbiter(Arbiter):
-    worker = child(MyWorker, 30, "worker", {})
-    worker2 = child(MyWorker2, 30, "worker", {})
-    worker3 = child(MyWorker2, 30, "kill", {})
-
-
 if __name__ == '__main__':
-    arbiter = MyArbiter("master")
+
+    conf = {}
+
+    specs = [
+        (MyWorker, 30, "worker", {}, "w1"),
+        (MyWorker2, 30, "worker", {}, "w2"),
+        (MyWorker2, 30, "kill", {}, "w3")
+    ]
+
+
+    arbiter = Arbiter(conf, specs)
 
     arbiter.run()
