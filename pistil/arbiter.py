@@ -35,7 +35,7 @@ DEFAULT_CONF = dict(
 )
 
 
-RESTART__WORKERS = ("worker", "supervisor")
+RESTART_WORKERS = ("worker", "supervisor")
 
 log = logging.getLogger(__name__)
 
@@ -424,7 +424,7 @@ class Arbiter(object):
 
                 child, state = child_info
                 child.tmp.close()
-                if child.child_type in RESTART__WORKERS and not self.stopping:
+                if child.child_type in RESTART_WORKERS and not self.stopping:
                     self._WORKERS["<killed %s>"  % id(child)] = (child, 0)
         except OSError, e:
             if e.errno == errno.ECHILD:
