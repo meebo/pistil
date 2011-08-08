@@ -449,14 +449,20 @@ class Arbiter(object):
         child_args = self.conf
         child_args.update(child_spec.args)
 
-        # initialize child class
-        child = child_spec.child_class(
-                    child_args,
-                    name = name,
-                    child_type = child_type, 
-                    age = self.child_age,
-                    ppid = self.pid,
-                    timeout = child_spec.timeout)
+        try:
+            # initialize child class
+            child = child_spec.child_class(
+                        child_args,
+                        name = name,
+                        child_type = child_type, 
+                        age = self.child_age,
+                        ppid = self.pid,
+                        timeout = child_spec.timeout)
+        except:
+            log.info("Unhandled exception while creating '%s':\n%s",  
+                            name, traceback.format_exc())
+            return
+
 
         self.pre_fork(child)
         pid = os.fork()
