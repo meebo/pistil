@@ -23,7 +23,6 @@ class TcpArbiter(PoolArbiter):
 
         # we want to pass the socket to the worker.
         self.conf.update({"sock": self._LISTENER})
-        print self.conf
         
 
     def when_ready(self):
