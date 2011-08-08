@@ -36,7 +36,7 @@ class UrlWorker(Worker):
             time.sleep(0.1)
             f = urllib2.urlopen("http://localhost:5000")
             print f.read()
-            self.notify 
+            self.notify() 
 
 class MyPoolArbiter(TcpArbiter):
 
