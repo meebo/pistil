@@ -45,11 +45,11 @@ class PoolArbiter(Arbiter):
         self.num_workers = conf.get('num_workers', 1)
        
         ret =  self.on_init(conf)
-        if ret is not None:
-            self._SPEC = Child(*ret)
-        else:
+        if not ret: 
             self._SPEC = Child(*spec)
-
+        else:
+            self._SPEC = Child(*ret)
+        
         if name is None:
             name =  self.__class__.__name__
 
@@ -66,6 +66,10 @@ class PoolArbiter(Arbiter):
         self.stopping = False
         self.debug =self.conf.get("debug", False)
         self.tmp = WorkerTmp(self.conf)
+
+
+    def on_init(self, conf):
+        return None
         
     def handle_ttin(self):
         """\
