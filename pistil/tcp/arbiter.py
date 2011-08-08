@@ -37,10 +37,10 @@ class TcpArbiter(PoolArbiter):
 
     def on_reload(self, local_conf, old_local_conf, global_conf,
             old_global_conf):
-        old_address = old_conf.get("address", ('127.0.0.1', 8000))
+        old_address = old_local_conf.get("address", ('127.0.0.1', 8000))
 
         # do we need to change listener ?
-        if old_address != conf.get("address", ('127.0.0.1', 8000)):
+        if old_address != local_conf.get("address", ('127.0.0.1', 8000)):
             self._LISTENER.close()
             self._LISTENER = create_socket(conf)
             log.info("Listening at: %s", self._LISTENER) 

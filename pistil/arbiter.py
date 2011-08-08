@@ -424,7 +424,8 @@ class Arbiter(object):
         self.kill_workers(signal.SIGKILL)   
         self.stopping = False
 
-    def on_reload(self, conf, old_conf):
+    def on_reload(self, local_conf, old_local_conf, global_conf,
+            old_global_conf):
         """ method executed on reload """
 
 
@@ -439,7 +440,7 @@ class Arbiter(object):
         
         # exec on reload hook
         self.on_reload(self.local_conf, old_local_conf,
-                self.global_conf, self.old_global_conf)
+                self.global_conf, old_global_conf)
 
         OLD__WORKERS = self._WORKERS.copy()
 
@@ -447,7 +448,7 @@ class Arbiter(object):
         to_reload = []
 
         # spawn new workers with new app & conf
-        for child in self._CHILDREN_SPECS:
+        for child_name, child in self._CHILDREN_SPECS.items():
             if child.child_type != "supervisor":
                 to_reload.append(child)
 

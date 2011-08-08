@@ -3,6 +3,7 @@
 # This file is part of pistil released under the MIT license. 
 # See the NOTICE for more information.
 
+from pistil.arbiter import child
 from pistil.tcp.sync_worker import TcpSyncWorker
 from pistil.tcp.arbiter import TcpArbiter
 
@@ -15,7 +16,7 @@ class MyTcpWorker(TcpSyncWorker):
         p = HttpStream(SocketReader(sock))
 
         path = p.path()
-        data = "welcome wold"
+        data = "welcome wold 2"
         sock.send("".join(["HTTP/1.1 200 OK\r\n", 
                         "Content-Type: text/html\r\n",
                         "Content-Length:" + str(len(data)) + "\r\n",
