@@ -24,7 +24,7 @@ DEFAULT_CONF = dict(
 class PoolArbiter(Arbiter):
 
 
-    SIGNALS = map(
+    _SIGNALS = map(
         lambda x: getattr(signal, "SIG%s" % x),
         "HUP QUIT INT TERM TTIN TTOU USR1 USR2 WINCH".split()
     )
@@ -65,11 +65,17 @@ class PoolArbiter(Arbiter):
         self.booted = False
         self.stopping = False
         self.debug =self.conf.get("debug", False)
-        self.tmp = WorkerTmp(self.conf)
+        self.tmp = WorkerTmp(self.conf) 
 
+    def update_proc_title(self):
+        util._setproctitle("arbiter [%s running %s workers]" % (self.name,  
+            self.num_workers))
 
     def on_init(self, conf):
         return None
+
+    def on_init_process(self):
+        self.update_proc_title()
         
     def handle_ttin(self):
         """\
@@ -77,6 +83,7 @@ class PoolArbiter(Arbiter):
         Increases the number of workers by one.
         """
         self.num_workers += 1
+        self.update_proc_title()
         self.manage_workers()
     
     def handle_ttou(self):
@@ -87,6 +94,7 @@ class PoolArbiter(Arbiter):
         if self.num_workers <= 1:
             return
         self.num_workers -= 1
+        self.update_proc_title()
         self.manage_workers()
 
     def reload(self):

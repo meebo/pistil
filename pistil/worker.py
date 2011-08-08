@@ -83,6 +83,7 @@ class Worker(object):
 
     def on_init_process(self):
         """ method executed when we init a process """
+        pass
 
     def init_process(self):
         """\

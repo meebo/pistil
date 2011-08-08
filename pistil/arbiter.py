@@ -132,6 +132,8 @@ class Arbiter(object):
 
     def on_init_process(self):
         """ method executed when we init a process """
+        pass
+
 
     def init_process(self):
         """\
@@ -143,7 +145,7 @@ class Arbiter(object):
 
         # set current pid
         self.pid = os.getpid()
-
+        
         util.set_owner_process(self.conf.get("uid", os.geteuid()),
                 self.conf.get("gid", os.getegid()))
 
@@ -153,9 +155,10 @@ class Arbiter(object):
         # prevent fd inheritance
         util.close_on_exec(self.tmp.fileno())
 
-        # init signals
+         # init signals
         self.init_signals()
 
+        util._setproctitle("arbiter [%s]" % self.name)
         self.on_init_process()
 
         log.debug("Arbiter %s booted on %s", self.name, self.pid)
@@ -189,9 +192,7 @@ class Arbiter(object):
             log.warn("Dropping signal: %s", sig)
 
     def run(self):
-        "Main master loop."
-        util._setproctitle("arbiter [%s]" % self.name)
-       
+        "Main master loop." 
         if not self.booted:
             return self.init_process()
 
@@ -218,7 +219,8 @@ class Arbiter(object):
                     log.error("Unhandled signal: %s", signame)
                     continue
                 log.info("Handling signal: %s", signame)
-                handler()  
+                handler()
+                self.tmp.notify()
                 self.wakeup()
             except StopIteration:
                 self.halt()
