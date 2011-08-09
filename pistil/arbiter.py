@@ -440,6 +440,7 @@ class Arbiter(object):
 
         for pid, (child, state) in self._WORKERS.items():
             if not state:
+                del self._WORKERS[pid]
                 self.spawn_child(self._SPECS_BYNAME[child.name])
 
     def pre_fork(self, worker):
