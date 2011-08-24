@@ -6,6 +6,7 @@
 import logging
 import os
 
+from pistil import util
 from pistil.pool import PoolArbiter
 from pistil.tcp.sock import create_socket
 
@@ -17,7 +18,8 @@ class TcpArbiter(PoolArbiter):
     _LISTENER = None
 
     def on_init(self, args):
-        self.address = args.get('address', ('127.0.0.1', 8000))
+        self.address = util.parse_address(args.get('address',
+            ('127.0.0.1', 8000)))
         if not self._LISTENER:
             self._LISTENER = create_socket(args)
 
