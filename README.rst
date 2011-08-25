@@ -2,7 +2,7 @@ pistil
 ------
 
 
-Simple multiprocessing toolkit. This is based on the `Gunicorn <http://gunicorn.orh>`_ multiprocessing engine. 
+Simple multiprocessing toolkit. This is based on the `Gunicorn <http://gunicorn.org>`_ multiprocessing engine. 
 
 This library allows you to supervise multiple type of workers and chain
 supervisors. Gracefull, reload, signaling between workers is handled.  
