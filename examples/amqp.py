@@ -33,7 +33,7 @@ class AMQPWorker(Worker):
 
     _connection = None
 
-    def handle_licensedproduct(self, body, message):
+    def handle_test(self, body, message):
         log.debug("Handle message: %s" % body)
         message.ack()
 
