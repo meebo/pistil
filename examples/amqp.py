@@ -55,7 +55,6 @@ class AMQPWorker(Worker):
         while True:
             try:
                 self._connection.drain_events()
-                self.notify()
             except socket.timeout:
                 log.debug("nothing to consume...")
                 break
@@ -63,7 +62,6 @@ class AMQPWorker(Worker):
 
     def run(self):
         while self.alive:
-            self.notify()
             try:
                 self.handle()
             except Exception:
