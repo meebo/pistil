@@ -392,13 +392,15 @@ class Arbiter(object):
         """
         for (pid, child_info) in self._WORKERS.items():
             (child, state) = child_info
-            if state:
+            if state and child.timeout is not None:
                 try:
                     diff = time.time() - os.fstat(child.tmp.fileno()).st_ctime
-                    if diff <= child.timeout or child.timeout is None:
+                    if diff <= child.timeout:
                         continue
                 except ValueError:
                     continue
+            elif state and child.timeout is None:
+                continue
 
             log.critical("WORKER TIMEOUT (pid:%s)", pid)
             self.kill_worker(pid, signal.SIGKILL)
