@@ -55,12 +55,12 @@ class Child(object):
         self.child_type = child_type
         self.args = args
         self.name = name
-        print self.name
 
 
 # chaine init worker:
 # (WorkerClass, max_requests, timeout, type, args, name)
 # types: supervisor, kill, brutal_kill, worker
+# timeout: integer in seconds or None
 
 class Arbiter(object):
     """
@@ -375,7 +375,7 @@ class Arbiter(object):
         
         # kill old workers
         for wpid, (child, state) in OLD__WORKERS.items():
-            if state:
+            if state and child.timeout is not None:
                 if child.child_type == "supervisor":
                     # we only reload suprvisors.
                     sig = signal.SIGHUP
@@ -392,13 +392,15 @@ class Arbiter(object):
         """
         for (pid, child_info) in self._WORKERS.items():
             (child, state) = child_info
-            if state:
+            if state and child.timeout is not None:
                 try:
                     diff = time.time() - os.fstat(child.tmp.fileno()).st_ctime
                     if diff <= child.timeout:
                         continue
                 except ValueError:
                     continue
+            elif state and child.timeout is None:
+                continue
 
             log.critical("WORKER TIMEOUT (pid:%s)", pid)
             self.kill_worker(pid, signal.SIGKILL)
