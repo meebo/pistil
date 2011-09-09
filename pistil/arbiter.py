@@ -3,8 +3,6 @@
 # This file is part of pistil released under the MIT license. 
 # See the NOTICE for more information.
 
-from __future__ import with_statement
-
 import errno
 import logging
 import os
@@ -202,7 +200,10 @@ class Arbiter(object):
                 # notfy the master
                 self.tmp.notify()
                 self.reap_workers()
-                sig = self._SIG_QUEUE.pop(0) if len(self._SIG_QUEUE) else None
+                sig = None
+                if len(self._SIG_QUEUE):
+                    sig = self._SIG_QUEUE.pop(0)
+                
                 if sig is None:
                     self.sleep()
                     self.murder_workers()
@@ -483,19 +484,20 @@ class Arbiter(object):
         # Process Child
         worker_pid = os.getpid()
         try:
-            util._setproctitle("worker %s [%s]" % (name,  worker_pid))
-            log.info("Booting %s (%s) with pid: %s", name,
-                    child_type, worker_pid)
-            self.post_fork(child)
-            child.init_process()
-            sys.exit(0)
-        except SystemExit:
-            raise
-        except:
-            log.exception("Exception in worker process:")
-            if not child.booted:
-                sys.exit(self._WORKER_BOOT_ERROR)
-            sys.exit(-1)
+            try:
+                util._setproctitle("worker %s [%s]" % (name,  worker_pid))
+                log.info("Booting %s (%s) with pid: %s", name,
+                        child_type, worker_pid)
+                self.post_fork(child)
+                child.init_process()
+                sys.exit(0)
+            except SystemExit:
+                raise
+            except:
+                log.exception("Exception in worker process:")
+                if not child.booted:
+                    sys.exit(self._WORKER_BOOT_ERROR)
+                sys.exit(-1)
         finally:
             log.info("Worker exiting (pid: %s)", worker_pid)
             try:

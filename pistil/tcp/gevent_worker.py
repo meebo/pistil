@@ -3,8 +3,6 @@
 # This file is part of pistil released under the MIT license. 
 # See the NOTICE for more information.
 
-from __future__ import with_statement
-
 import os
 import sys
 

@@ -3,8 +3,6 @@
 # This file is part of pistil released under the MIT license. 
 # See the NOTICE for more information.
 
-from __future__ import with_statement
-
 import errno
 import os
 import tempfile
@@ -54,11 +52,14 @@ class Pidfile(object):
     def unlink(self):
         """ delete pidfile"""
         try:
-            with open(self.fname, "r") as f:
+            try:
+                f = open(self.fname, "r")
                 pid1 =  int(f.read() or 0)
 
-            if pid1 == self.pid:
-                os.unlink(self.fname)
+                if pid1 == self.pid:
+                    os.unlink(self.fname)
+            finally:
+                f.close()
         except:
             pass
        
@@ -67,7 +68,8 @@ class Pidfile(object):
         if not self.fname:
             return
         try:
-            with open(self.fname, "r") as f:
+            try:
+                f = open(self.fname, "r")
                 wpid = int(f.read() or 0)
 
                 if wpid <= 0:
@@ -80,6 +82,8 @@ class Pidfile(object):
                     if e[0] == errno.ESRCH:
                         return
                     raise
+            finally:
+                f.close()
         except IOError, e:
             if e[0] == errno.ENOENT:
                 return
